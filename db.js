@@ -3,7 +3,8 @@ require('dotenv').config()
 const mysql = require('mysql');
 
 
-const db = mysql.createConnection({
+const db = mysql.createPool({
+  connectionLimit:10,
   host: process.env.DB_HOST,
   user: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
@@ -11,14 +12,14 @@ const db = mysql.createConnection({
 });
 
 
-db.connect((err) => {
+db.getConnection((err,connection) => {
   if (err) {
     console.error('Error connecting to the database:', err);
     return;
   }
   console.log('Connected to the database');
-  
- /* const createTablesSQL = `
+  /*
+  const createTablesSQL = `
   CREATE TABLE IF NOT EXISTS Users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(255) NOT NULL UNIQUE,
@@ -52,8 +53,8 @@ const createtable2=`
     }
     console.log('Tables created successfully');
     db.end(); // Close database connection after creating tables
-  });
-  */
+  });*/
+  connection.release()
 });
 
 module.exports = db;

@@ -1,11 +1,12 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
+const { errorMonitor } = require('supertest/lib/test');
 
 exports.login = (req, res) => {
   const { username, password } = req.body;
   User.getUserByUsername(username, (err, user) => {
-    console.log(user)
+    
     if (err) {
       console.error('Error fetching user:', err);
       res.status(500).json({ error: 'Error fetching user' });
@@ -34,7 +35,7 @@ exports.login = (req, res) => {
             res.status(500).json({ error: 'Error updating user role' });
             return;
           }
-          console.log(result)
+          
           // Generate JWT token and send response
           const token = jwt.sign({ userId: user.id, username: user.username,role:newRole}, process.env.JWT_SECRET, { expiresIn: '1h' });
           res.json({ token });
@@ -83,20 +84,36 @@ exports.getProfile = (req, res) => {
 exports.updateProfile = (req, res) => {
   const userId = req.userId;
   const { username, password } = req.body;
-  bcrypt.hash(password, 10, (err, hash) => {
+  User.getUserById(userId, (err, user) => {
     if (err) {
-      console.error('Error hashing password:', err);
-      res.status(500).json({ error: 'Error hashing password' });
-      return;
+      return res.status(500).json({ error: 'Error fetching user details' });
     }
-    User.updateUser(userId, username, hash, (err) => {
-      if (err) {
-        console.error('Error updating user:', err);
-        res.status(500).json({ error: 'Error updating user' });
-        return;
-      }
-      res.json({ message: 'User profile updated successfully' });
-    });
+
+    let updatedUser = username || user.username; // Simplified username check
+    let updatedPassword = user.password; // Default to current password unless changed
+
+    if (password) {
+      bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+          console.error('Error hashing password:', err);
+          return res.status(500).json({ error: 'Error hashing password' });
+        }
+        updatedPassword = hash;
+        updateUserDetails();
+      });
+    } else {
+      updateUserDetails();
+    }
+
+    function updateUserDetails() {
+      User.updateUser(userId, updatedUser, updatedPassword, (err) => {
+        if (err) {
+          console.error('Error updating user:', err);
+          return res.status(500).json({ error: 'Error updating user' });
+        }
+        res.json({ message: 'User profile updated successfully' });
+      });
+    }
   });
 };
 
